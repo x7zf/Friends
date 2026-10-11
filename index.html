@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Friends?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #04050d;
+    --violet: #7c5cff;
+    --pink: #ff4d9d;
+    --cyan: #22d3ee;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    color: #fff;
+    font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ========== BACKGROUND LAYERS ========== */
+  .layer { position: fixed; inset: 0; pointer-events: none; }
+
+  /* deep base glow */
+  .base {
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 0%, rgba(124, 92, 255, .22), transparent 70%),
+      radial-gradient(ellipse 70% 50% at 50% 100%, rgba(255, 77, 157, .14), transparent 70%),
+      var(--bg);
+  }
+
+  /* aurora blobs */
+  .aurora { overflow: hidden; }
+  .aurora i {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(110px);
+    mix-blend-mode: screen;
+    opacity: .5;
+    animation: drift 20s ease-in-out infinite alternate;
+  }
+  .aurora i:nth-child(1) { width: 52vmax; height: 52vmax; background: var(--violet); top: -22vmax; left: -14vmax; }
+  .aurora i:nth-child(2) { width: 44vmax; height: 44vmax; background: var(--pink);   bottom: -22vmax; right: -12vmax; animation-delay: -7s; opacity: .38; }
+  .aurora i:nth-child(3) { width: 36vmax; height: 36vmax; background: var(--cyan);   top: 30%; left: 55%; animation-delay: -13s; opacity: .26; }
+  @keyframes drift {
+    0%   { transform: translate(0, 0) scale(1) rotate(0deg); }
+    100% { transform: translate(6vmax, 4vmax) scale(1.25) rotate(25deg); }
+  }
+
+  /* retro-futuristic perspective grid */
+  .grid-wrap {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    height: 52vh;
+    overflow: hidden;
+    perspective: 420px;
+    pointer-events: none;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 55%);
+            mask-image: linear-gradient(to bottom, transparent 0%, #000 55%);
+    opacity: .5;
+  }
+  .grid {
+    position: absolute;
+    left: -100%; right: -100%;
+    top: 0;
+    height: 380px;
+    transform: rotateX(70deg);
+    transform-origin: top center;
+    background-image:
+      linear-gradient(rgba(124, 92, 255, .75) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(34, 211, 238, .55) 1px, transparent 1px);
+    background-size: 56px 56px;
+    animation: gridmove 2.2s linear infinite;
+  }
+  @keyframes gridmove { to { background-position: 0 56px, 0 0; } }
+
+  /* big slowly-rotating rings behind the title */
+  .rings {
+    position: fixed;
+    left: 50%; top: 50%;
+    width: 0; height: 0;
+    pointer-events: none;
+  }
+  .ring {
+    position: absolute;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+  }
+  .ring::after {
+    content: "";
+    position: absolute;
+    top: -4px; left: 50%;
+    width: 8px; height: 8px;
+    margin-left: -4px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 0 14px 3px var(--cyan);
+  }
+  .r1 { width: min(46vmin, 480px);  height: min(46vmin, 480px);  border: 1px dashed rgba(255,255,255,.10); animation: spin 50s linear infinite; }
+  .r2 { width: min(72vmin, 760px);  height: min(72vmin, 760px);  border: 1px solid rgba(255,255,255,.06);  animation: spin 80s linear infinite reverse; }
+  .r2::after { box-shadow: 0 0 14px 3px var(--pink); }
+  .r3 { width: min(100vmin, 1050px); height: min(100vmin, 1050px); border: 1px dotted rgba(255,255,255,.09); animation: spin 120s linear infinite; }
+  .r3::after { box-shadow: 0 0 14px 3px var(--violet); }
+  @keyframes spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
+
+  /* mouse-following spotlight */
+  .spot {
+    background: radial-gradient(520px circle at var(--x, 50%) var(--y, 50%), rgba(255, 255, 255, .07), transparent 60%);
+  }
+
+  canvas#fx { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+
+  /* vignette + film grain */
+  .vignette { background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, .65) 100%); z-index: 4; }
+  .grain {
+    z-index: 4;
+    opacity: .07;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  }
+
+  /* ========== CONTENT ========== */
+  main {
+    position: relative;
+    z-index: 3;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3.4rem;
+    padding: 1.5rem;
+    text-align: center;
+  }
+
+  h1 {
+    font-family: "Space Grotesk", "Inter", system-ui, sans-serif;
+    font-size: clamp(2.3rem, 7vw, 5.2rem);
+    font-weight: 700;
+    line-height: 1.08;
+    letter-spacing: -.035em;
+    max-width: 14ch;
+    background: linear-gradient(100deg, #ffffff 15%, #c9bcff 38%, #ff9ccb 52%, #8be9fd 68%, #ffffff 88%);
+    background-size: 260% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    filter: drop-shadow(0 0 30px rgba(124, 92, 255, .35));
+    animation: shine 7s linear infinite, floaty 6s ease-in-out infinite, blurin 1.4s cubic-bezier(.2, .8, .2, 1) both;
+  }
+  @keyframes shine  { to { background-position: 260% center; } }
+  @keyframes floaty { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
+  @keyframes blurin { from { opacity: 0; filter: blur(18px) drop-shadow(0 0 0 transparent); letter-spacing: .02em; } }
+
+  .buttons {
+    display: flex;
+    gap: 1.2rem;
+    align-items: center;
+    justify-content: center;
+    animation: rise 1.2s .45s cubic-bezier(.2, .8, .2, 1) both;
+  }
+  @keyframes rise { from { opacity: 0; transform: translateY(24px); } }
+
+  .slot { display: inline-block; }
+
+  button {
+    position: relative;
+    font: inherit;
+    font-size: 1.05rem;
+    font-weight: 600;
+    letter-spacing: .01em;
+    color: #fff;
+    height: 58px;
+    min-width: 150px;
+    padding: 0 2.4rem;
+    border-radius: 18px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    overflow: hidden;
+    transition: transform .3s cubic-bezier(.2, .8, .2, 1), box-shadow .3s ease, border-color .3s ease;
+  }
+
+  /* glass button */
+  #no {
+    background:
+      linear-gradient(rgba(14, 12, 34, .55), rgba(14, 12, 34, .55)) padding-box,
+      linear-gradient(135deg, rgba(255, 255, 255, .45), rgba(255, 255, 255, .06) 55%, rgba(255, 255, 255, .25)) border-box;
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    box-shadow: 0 10px 30px -12px rgba(0, 0, 0, .8), inset 0 1px 0 rgba(255, 255, 255, .08);
+  }
+  #no:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 16px 40px -12px rgba(124, 92, 255, .55), inset 0 1px 0 rgba(255, 255, 255, .15);
+  }
+  #no:active { transform: translateY(0) scale(.98); }
+
+  /* glowing gradient button (the one that runs away) */
+  #yes {
+    background:
+      linear-gradient(135deg, #8a6bff 0%, #ff4d9d 100%) padding-box,
+      linear-gradient(135deg, rgba(255,255,255,.7), rgba(255,255,255,.1)) border-box;
+    box-shadow:
+      0 14px 44px -10px rgba(124, 92, 255, .85),
+      0 0 0 1px rgba(255, 255, 255, .06),
+      inset 0 1px 0 rgba(255, 255, 255, .45);
+    transition: box-shadow .3s ease;      /* movement is handled in JS physics */
+    will-change: transform;
+    z-index: 5;
+    overflow: visible;
+  }
+  #yes::before {                           /* light sweep */
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, .45) 50%, transparent 65%);
+    background-size: 250% 100%;
+    background-position: 150% 0;
+    animation: sweep 3.2s ease-in-out infinite;
+    pointer-events: none;
+  }
+  @keyframes sweep { 0%, 55% { background-position: 150% 0; } 100% { background-position: -50% 0; } }
+  #yes::after {                            /* soft pulse halo */
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    border: 1.5px solid rgba(255, 120, 190, .6);
+    animation: pulse 2.4s ease-out infinite;
+    pointer-events: none;
+  }
+  @keyframes pulse { from { transform: scale(1); opacity: .8; } to { transform: scale(1.28, 1.5); opacity: 0; } }
+
+  /* ========== RICKROLL OVERLAY ========== */
+  #rick {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: #03030a;
+  }
+  #rick.show { display: flex; animation: fadein .5s ease both; }
+  @keyframes fadein { from { opacity: 0; } }
+  .frame {
+    position: relative;
+    flex-shrink: 0;
+    width: min(94vw, 960px, calc(88vh * 16 / 9));
+    border-radius: 22px;
+    overflow: hidden;
+    background: #000;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, .08), 0 0 80px rgba(124, 92, 255, .5);
+  }
+  .frame::before { content: ""; display: block; padding-top: 56.25%; }   /* 16:9 box */
+  .frame video {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    border: 0;
+    display: block;
+    object-fit: contain;
+    background: #000;
+  }
+
+  @media (max-width: 520px) {
+    .buttons { gap: .8rem; }
+    button { min-width: 120px; padding: 0 1.6rem; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .aurora i, .ring, .grid, h1 { animation: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="layer base"></div>
+<div class="layer aurora"><i></i><i></i><i></i></div>
+<div class="grid-wrap"><div class="grid"></div></div>
+<div class="rings"><div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div></div>
+<div class="layer spot" id="spot"></div>
+<canvas id="fx"></canvas>
+<div class="layer vignette"></div>
+<div class="layer grain"></div>
+
+<main>
+  <h1>Do you wanna be my friend again?</h1>
+  <div class="buttons">
+    <span class="slot" id="slot"><button id="yes" type="button">Yes</button></span>
+    <button id="no" type="button">No</button>
+  </div>
+</main>
+
+<div id="rick">
+  <div class="frame" id="frame"><video id="clip" controls playsinline preload="auto"></video></div>
+</div>
+
+<script>
+/* ============================================================
+   EDIT THIS: the file name(s) of your video (must be in the same
+   folder as index.html in your GitHub repo). Upload a .webm and/or
+   an .mp4; the browser picks whichever it can play.
+   ============================================================ */
+const VIDEO_FILES = ["video.webm", "video.mp4"];   // the page uses the first one your browser can play
+</script>
+
+<script>
+/* ---------- Particles, stars, shooting stars ---------- */
+(() => {
+  const canvas = document.getElementById("fx");
+  const ctx = canvas.getContext("2d");
+  const spot = document.getElementById("spot");
+  let W, H, dpr, stars = [], particles = [], sparks = [], shooters = [];
+  const mouse = { x: -9999, y: -9999, sx: window.innerWidth / 2, sy: window.innerHeight / 2 };
+  const colors = ["255,77,157", "124,92,255", "34,211,238", "255,255,255"];
+
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth; H = window.innerHeight;
+    canvas.width = W * dpr; canvas.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    const sc = Math.min(260, Math.floor((W * H) / 6500));
+    stars = Array.from({ length: sc }, () => ({
+      x: Math.random() * W, y: Math.random() * H,
+      z: Math.random() * .85 + .15,
+      r: Math.random() * 1.1 + .3,
+      tw: Math.random() * Math.PI * 2,
+      sp: Math.random() * .03 + .01
+    }));
+
+    const pc = Math.min(110, Math.floor((W * H) / 14000));
+    particles = Array.from({ length: pc }, () => ({
+      x: Math.random() * W, y: Math.random() * H,
+      vx: (Math.random() - .5) * .45, vy: (Math.random() - .5) * .45,
+      r: Math.random() * 2 + 1,
+      c: colors[Math.floor(Math.random() * colors.length)],
+      tw: Math.random() * Math.PI * 2
+    }));
+  }
+  window.addEventListener("resize", resize);
+  resize();
+
+  function burst(x, y, n) {
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2, s = Math.random() * 3 + 1;
+      sparks.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 1, decay: .018, c: colors[Math.floor(Math.random() * 3)] });
+    }
+  }
+
+  window.addEventListener("pointermove", e => {
+    mouse.x = e.clientX; mouse.y = e.clientY;
+    if (Math.random() < .55) {
+      sparks.push({
+        x: e.clientX, y: e.clientY,
+        vx: (Math.random() - .5) * 1.2, vy: (Math.random() - .5) * 1.2 - .3,
+        life: 1, decay: .022, c: colors[Math.floor(Math.random() * 3)]
+      });
+    }
+  });
+  window.addEventListener("pointerdown", e => burst(e.clientX, e.clientY, 22));
+  document.addEventListener("mouseleave", () => { mouse.x = mouse.y = -9999; });
+
+  let nextShooter = 60;
+  function spawnShooter() {
+    const fromLeft = Math.random() < .5;
+    const speed = Math.random() * 6 + 9;
+    const ang = (Math.random() * 20 + 20) * Math.PI / 180;
+    shooters.push({
+      x: Math.random() * W * .8 + (fromLeft ? 0 : W * .2),
+      y: Math.random() * H * .4,
+      vx: Math.cos(ang) * speed * (fromLeft ? 1 : -1),
+      vy: Math.sin(ang) * speed,
+      life: 1,
+      c: Math.random() < .5 ? "190,170,255" : "140,230,255"
+    });
+  }
+
+  function frame() {
+    ctx.clearRect(0, 0, W, H);
+
+    // smooth spotlight
+    mouse.sx += ((mouse.x < 0 ? W / 2 : mouse.x) - mouse.sx) * .08;
+    mouse.sy += ((mouse.y < 0 ? H / 2 : mouse.y) - mouse.sy) * .08;
+    spot.style.setProperty("--x", mouse.sx.toFixed(1) + "px");
+    spot.style.setProperty("--y", mouse.sy.toFixed(1) + "px");
+
+    // parallax stars
+    const px = (mouse.sx - W / 2) / W, py = (mouse.sy - H / 2) / H;
+    for (const s of stars) {
+      s.tw += s.sp;
+      s.y += .04 * s.z;
+      if (s.y > H + 4) { s.y = -4; s.x = Math.random() * W; }
+      const x = s.x - px * 40 * s.z, y = s.y - py * 40 * s.z;
+      const a = (.35 + Math.sin(s.tw) * .3) * s.z + .1;
+      ctx.fillStyle = `rgba(255,255,255,${a})`;
+      ctx.beginPath();
+      ctx.arc(x, y, s.r * s.z + .2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // glowing particles
+    for (const p of particles) {
+      const dx = p.x - mouse.x, dy = p.y - mouse.y;
+      const d2 = dx * dx + dy * dy;
+      if (d2 < 22000) {
+        const d = Math.sqrt(d2) || 1;
+        const f = (1 - d / 148) * .6;
+        p.vx += (dx / d) * f * .15;
+        p.vy += (dy / d) * f * .15;
+      }
+      p.vx *= .99; p.vy *= .99;
+      p.x += p.vx; p.y += p.vy;
+      p.tw += .03;
+      if (p.x < -10) p.x = W + 10; else if (p.x > W + 10) p.x = -10;
+      if (p.y < -10) p.y = H + 10; else if (p.y > H + 10) p.y = -10;
+
+      const a = .55 + Math.sin(p.tw) * .35;
+      ctx.beginPath();
+      ctx.fillStyle = `rgba(${p.c},${a})`;
+      ctx.shadowColor = `rgba(${p.c},.9)`;
+      ctx.shadowBlur = 14;
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.shadowBlur = 0;
+
+    // network lines
+    ctx.lineWidth = 1;
+    for (let i = 0; i < particles.length; i++) {
+      for (let j = i + 1; j < particles.length; j++) {
+        const a = particles[i], b = particles[j];
+        const dx = a.x - b.x, dy = a.y - b.y;
+        const d = dx * dx + dy * dy;
+        if (d < 15000) {
+          ctx.strokeStyle = `rgba(160,140,255,${(1 - d / 15000) * .22})`;
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.stroke();
+        }
+      }
+    }
+    for (const p of particles) {
+      const dx = p.x - mouse.x, dy = p.y - mouse.y;
+      const d = dx * dx + dy * dy;
+      if (d < 26000) {
+        ctx.strokeStyle = `rgba(255,95,162,${(1 - d / 26000) * .45})`;
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(mouse.x, mouse.y);
+        ctx.stroke();
+      }
+    }
+
+    // shooting stars
+    if (--nextShooter <= 0) { spawnShooter(); nextShooter = 90 + Math.random() * 200; }
+    for (let i = shooters.length - 1; i >= 0; i--) {
+      const s = shooters[i];
+      s.x += s.vx; s.y += s.vy; s.life -= .012;
+      if (s.life <= 0 || s.x < -100 || s.x > W + 100 || s.y > H + 100) { shooters.splice(i, 1); continue; }
+      const tx = s.x - s.vx * 9, ty = s.y - s.vy * 9;
+      const g = ctx.createLinearGradient(s.x, s.y, tx, ty);
+      g.addColorStop(0, `rgba(${s.c},${s.life})`);
+      g.addColorStop(1, `rgba(${s.c},0)`);
+      ctx.strokeStyle = g;
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(s.x, s.y);
+      ctx.lineTo(tx, ty);
+      ctx.stroke();
+      ctx.fillStyle = `rgba(255,255,255,${s.life})`;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, 1.6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.lineWidth = 1;
+
+    // sparkles
+    for (let i = sparks.length - 1; i >= 0; i--) {
+      const s = sparks[i];
+      s.x += s.vx; s.y += s.vy; s.vx *= .985; s.vy *= .985; s.life -= s.decay;
+      if (s.life <= 0) { sparks.splice(i, 1); continue; }
+      ctx.beginPath();
+      ctx.fillStyle = `rgba(${s.c},${s.life})`;
+      ctx.arc(s.x, s.y, 2 * s.life + .5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    requestAnimationFrame(frame);
+  }
+  frame();
+})();
+
+/* ---------- Yes button that can't be clicked (smooth physics) ---------- */
+(() => {
+  const yes = document.getElementById("yes");
+  const no = document.getElementById("no");
+  const slot = document.getElementById("slot");
+  const R = 200;       // how far away it notices the mouse
+  const MARGIN = 16;   // keep this far from screen edges
+  let x = 0, y = 0;    // offset from its resting spot
+  let vx = 0, vy = 0;  // velocity
+  let last = performance.now();
+  const mouse = { x: -9999, y: -9999 };
+
+  window.addEventListener("pointermove", e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+  document.addEventListener("mouseleave", () => { mouse.x = mouse.y = -9999; });
+  window.addEventListener("pointerup", e => {
+    if (e.pointerType === "touch") mouse.x = mouse.y = -9999;
+  });
+
+  function kick(px, py, power) {
+    const s = slot.getBoundingClientRect();
+    const cx = s.left + x + yes.offsetWidth / 2;
+    const cy = s.top + y + yes.offsetHeight / 2;
+    const d = Math.hypot(cx - px, cy - py) || 1;
+    vx += ((cx - px) / d) * power + (Math.random() - .5) * 4;
+    vy += ((cy - py) / d) * power + (Math.random() - .5) * 4;
+  }
+
+  // touch screens, keyboard focus and sneaky fast clicks all just push it away
+  ["pointerdown", "touchstart", "mousedown"].forEach(ev =>
+    yes.addEventListener(ev, e => {
+      e.preventDefault();
+      if (e.clientX !== undefined) mouse.x = e.clientX, mouse.y = e.clientY;
+      kick(mouse.x, mouse.y, 22);
+    }, { passive: false })
+  );
+  yes.addEventListener("focus", () => { kick(window.innerWidth / 2, window.innerHeight / 2, -10); yes.blur(); });
+  yes.addEventListener("click", e => e.preventDefault());
+
+  function tick(now) {
+    const dt = Math.min((now - last) / 16.667, 3);
+    last = now;
+
+    const s = slot.getBoundingClientRect();
+    const w = yes.offsetWidth, h = yes.offsetHeight;
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const cx = s.left + x + w / 2;
+    const cy = s.top + y + h / 2;
+
+    const dx = cx - mouse.x, dy = cy - mouse.y;
+    const dist = Math.hypot(dx, dy) || 1;
+
+    if (dist < R) {
+      const t = 1 - dist / R;
+      const k = (t * t * 1.6 + t * .35) * dt;
+      const ux = dx / dist, uy = dy / dist;
+      vx += ux * k;
+      vy += uy * k;
+      // sideways swirl toward the middle of the screen, so it curves around
+      // instead of getting stuck on a wall or in a corner
+      let sx = -uy, sy = ux;
+      if (sx * (vw / 2 - cx) + sy * (vh / 2 - cy) < 0) { sx = -sx; sy = -sy; }
+      vx += sx * k * .7;
+      vy += sy * k * .7;
+    }
+
+    // soft walls
+    if (dist < R * 1.5) {
+      const edge = 110;
+      const l = cx - w / 2 - MARGIN, r = vw - (cx + w / 2) - MARGIN;
+      const tp = cy - h / 2 - MARGIN, b = vh - (cy + h / 2) - MARGIN;
+      if (l < edge) vx += (1 - l / edge) * .9 * dt;
+      if (r < edge) vx -= (1 - r / edge) * .9 * dt;
+      if (tp < edge) vy += (1 - tp / edge) * .9 * dt;
+      if (b < edge) vy -= (1 - b / edge) * .9 * dt;
+    }
+
+    // never slide over the No button
+    const nr = no.getBoundingClientRect(), pad = 24;
+    const L = s.left + x, T = s.top + y;
+    const a1 = nr.right + pad - L, a2 = L + w - (nr.left - pad);
+    const b1 = nr.bottom + pad - T, b2 = T + h - (nr.top - pad);
+    if (a1 > 0 && a2 > 0 && b1 > 0 && b2 > 0) {
+      const m = Math.min(a1, a2, b1, b2);
+      const f = Math.min(m * .12, 3) * dt;
+      if (m === a1) vx += f; else if (m === a2) vx -= f;
+      else if (m === b1) vy += f; else vy -= f;
+    }
+
+    // speed limit + friction => smooth glide
+    const sp = Math.hypot(vx, vy);
+    if (sp > 26) { vx *= 26 / sp; vy *= 26 / sp; }
+    const fr = Math.pow(.9, dt);
+    vx *= fr; vy *= fr;
+    x += vx * dt;
+    y += vy * dt;
+
+    // hard clamp to the viewport
+    const minX = MARGIN - s.left, maxX = vw - w - MARGIN - s.left;
+    const minY = MARGIN - s.top,  maxY = vh - h - MARGIN - s.top;
+    if (x < minX) { x = minX; if (vx < 0) vx *= -.3; }
+    if (x > maxX) { x = maxX; if (vx > 0) vx *= -.3; }
+    if (y < minY) { y = minY; if (vy < 0) vy *= -.3; }
+    if (y > maxY) { y = maxY; if (vy > 0) vy *= -.3; }
+
+    const tilt = Math.max(-12, Math.min(12, vx * .6));
+    yes.style.transform = `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0) rotate(${tilt.toFixed(2)}deg)`;
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+})();
+
+/* ---------- No button -> plays your own video file ---------- */
+(() => {
+  const overlay = document.getElementById("rick");
+  const clip = document.getElementById("clip");
+
+  document.getElementById("no").addEventListener("click", () => {
+    overlay.classList.add("show");
+    clip.innerHTML = "";
+    VIDEO_FILES.forEach(f => {
+      const src = document.createElement("source");
+      src.src = f;
+      const ext = f.split(".").pop().toLowerCase();
+      const types = { webm: "video/webm", mp4: "video/mp4", mov: "video/mp4", ogv: "video/ogg" };
+      if (types[ext]) src.type = types[ext];
+      clip.appendChild(src);
+    });
+    clip.load();
+    const p = clip.play();
+    if (p && p.catch) {
+      // if the browser blocks autoplay with sound, start muted instead
+      p.catch(() => { clip.muted = true; clip.play().catch(() => {}); });
+    }
+  });
+})();
+</script>
+</body>
+</html>
